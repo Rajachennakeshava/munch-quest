@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>MUNCH QUEST - Retro Maze Dash</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -179,8 +180,49 @@
     margin-top: 10px;
     letter-spacing: 1px;
   }
+  body.touch-device #hudFooter { display: none; } /* keyboard hint isn't relevant on touch */
+
+  /* ---------- TOUCH D-PAD (mobile) ---------- */
+  #dpad {
+    display: none; /* shown only when touch is detected, via body.touch-device below */
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin: 18px auto 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body.touch-device #dpad { display: flex; }
+  .dpad-row { display: flex; gap: 68px; }
+  .dbtn {
+    width: 58px; height: 58px;
+    font-size: 22px;
+    line-height: 58px;
+    text-align: center;
+    padding: 0;
+    background: #c76b2b;
+    color: #fff;
+    border: 3px solid #7a3b10;
+    border-radius: 8px;
+    box-shadow: inset -3px -3px 0 #7a3b10, inset 3px 3px 0 #e08a4c;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .dbtn:active { filter: brightness(1.35); }
+
+  /* ---------- RESPONSIVE SCALING FOR SMALL SCREENS ---------- */
+  @media (max-width: 520px) {
+    #stage { transform: scale(0.85); transform-origin: top center; margin-bottom: -90px; }
+  }
+  @media (max-width: 430px) {
+    #stage { transform: scale(0.72); transform-origin: top center; margin-bottom: -168px; }
+  }
+  @media (max-width: 360px) {
+    #stage { transform: scale(0.6); transform-origin: top center; margin-bottom: -238px; }
+  }
 </style>
 </head>
+
 <body>
 
 <div id="stage">
@@ -220,6 +262,20 @@
     <div id="endHint">PRESS ENTER TO PLAY AGAIN</div>
   </div>
 </div>
+
+<div id="dpad">
+  <div class="dpad-row">
+    <button class="dbtn" data-dir="up">&#9650;</button>
+  </div>
+  <div class="dpad-row">
+    <button class="dbtn" data-dir="left">&#9664;</button>
+    <button class="dbtn" data-dir="right">&#9654;</button>
+  </div>
+  <div class="dpad-row">
+    <button class="dbtn" data-dir="down">&#9660;</button>
+  </div>
+</div>
+
 <div id="hudFooter">ARROW KEYS / WASD TO MOVE &nbsp;|&nbsp; ENTER TO START / RESTART</div>
 
 <script>
@@ -751,6 +807,15 @@
 
   document.getElementById('startBtn').addEventListener('click', startGame);
 
+  // Shared handler so keyboard and the on-screen D-pad both drive the same
+  // state transitions (start / restart / next level / movement).
+  function handleDirectionInput(dir){
+    if(state==='intro'){ startGame(); return; }
+    if(state==='gameover'){ restartAfterGameOver(); return; }
+    if(state==='win'){ nextLevel(); return; }
+    player.nextDir = dir;
+  }
+
   window.addEventListener('keydown', (ev)=>{
     const navKeys = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '];
     if(navKeys.includes(ev.key)) ev.preventDefault();
@@ -773,6 +838,25 @@
       case 'ArrowLeft': case 'a': case 'A': player.nextDir = LEFT; break;
       case 'ArrowRight': case 'd': case 'D': player.nextDir = RIGHT; break;
     }
+  });
+
+  // ---------- TOUCH D-PAD ----------
+  function isTouchDevice(){
+    return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  }
+  if(isTouchDevice()){
+    document.body.classList.add('touch-device');
+  }
+  const dpadDirMap = { up: UP, down: DOWN, left: LEFT, right: RIGHT };
+  document.querySelectorAll('.dbtn').forEach(btn=>{
+    const dir = dpadDirMap[btn.dataset.dir];
+    const onPress = (ev)=>{
+      ev.preventDefault();
+      handleDirectionInput(dir);
+    };
+    // touchstart for real touch devices; mousedown too so it's testable with a mouse/emulator
+    btn.addEventListener('touchstart', onPress, { passive:false });
+    btn.addEventListener('mousedown', onPress);
   });
 
   // init attract-mode background
